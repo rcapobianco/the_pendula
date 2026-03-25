@@ -20,8 +20,7 @@ Repository: the_pendula
 
 SetDirectory[NotebookDirectory[]];
 
-(* First, we set the physical constants and the rescaled (units-\
-free) quantities *)
+(* First, we set the physical constants and the rescaled (units-free) quantities *)
 ClearAll[g, l, m, energy, Lz, \[Omega]0, \[Xi], \[Lambda]z, \[Alpha]]
 g = 981/100; l = 1; m = 1; Lz = 2/10;
 energy = 15;
@@ -41,8 +40,7 @@ ClearAll[\[Theta]0, \[Phi]0, v\[Theta]0, v\[Phi]0, t0, tmax, sign]
 
 \[Theta]0 = \[Pi]/2 + \[Pi]/6 ; \[Phi]0 = \[Pi]/2 ;
 
-t0 = 0 ; tmax = 6 ; (* Time interval for plots / \
-numerical integration. *)
+t0 = 0 ; tmax = 6 ; (* Time interval for plots numerical integration. *)
 
 sign = -1 ; (* sign can either be +1 or -1, \
 this is the direction fo the \theta velocity. *) 
@@ -189,12 +187,9 @@ exact\[Phi]plot =
 
 Show[exact\[Phi]plot, num\[Phi]plot, PlotRange -> All]
 
-(* Well, \
-at this point, we need to discuss the problem with this implementation \
-. There is no problem at all with the final expression we had obtained\
- for \[Phi](t). However, \
-it is likely that the plot of \[Phi](t) may not look continous, \
-as it should be. \
+(* Well, at this point, we need to discuss the problem with this implementation. \
+There is no problem at all with the final expression we had obtained for \[Phi](t). 
+However, it is likely that the plot of \[Phi](t) may not look continuous, as it should be. \
 The real problem is that "Log" is a multi-valued function, \
 and to properly plot the analytical expression we had for the elliptic\
  integral of the third kind, it would be required that the function choose \
