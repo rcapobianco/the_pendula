@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jan 18 23:49:39 2026
+Planar pendulum simulation with numerical and analytical solutions.
 
-@author: rogerio
+This script solves the nonlinear pendulum using:
+- numerical integration (solve_ivp)
+- exact elliptic-function solution
+- small-angle approximation
+
+It also produces phase space plots and period comparisons.
+
+Part of the project: The Pendula
+https://rcapobianco.github.io/notes/the_pendula/
+
+Author: Rogerio Capobianco
+Created: 2026-01-18
+Repository: the_pendula
 """
 
 import numpy as np
