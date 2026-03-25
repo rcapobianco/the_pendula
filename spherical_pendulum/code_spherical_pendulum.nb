@@ -1,0 +1,267 @@
+(* ========================================================= *)
+(* Spherical pendulum simulation with analytical and numerical solutions *)
+(*
+This script solves the spherical pendulum using:
+
+- numerical integration of the equations of motion
+- analytical solution using Weierstrass elliptic functions
+- effective potential analysis
+- 3D orbit visualization and animation
+
+Part of the project: The Pendula
+https://rcapobianco.github.io/notes/the_pendula/
+
+Author: Rogerio Capobianco
+Created: 2025-12-17
+Repository: the_pendula
+*)
+(* ========================================================= *)
+
+
+SetDirectory[NotebookDirectory[]];
+
+(* First, we set the physical constants and the rescaled (units-\
+free) quantities *)
+ClearAll[g, l, m, energy, Lz, \[Omega]0, \[Xi], \[Lambda]z, \[Alpha]]
+g = 981/100; l = 1; m = 1; Lz = 2/10;
+energy = 15;
+\[Omega]0 = N[Sqrt[g/l], 40] ;
+\[Xi] = N[energy/(m*g*l), 40] ;
+\[Lambda]z = N[Lz^2/(2*m^2*g*l^3), 40] ;
+\[Alpha] = 1/ Sqrt[2*\[Omega]0^2]*Lz/(m*l^2);
+
+ClearAll[g2, g3]
+{g2, g3} = 
+  N[{1/4 (1 + (\[Xi] - 1)^2/3), 
+    1/16 (\[Lambda]z + (2 (\[Xi] - 1)^3)/27 - (2*(\[Xi] - 1))/3)}, 40];
+Print[Style["Weierstrass invariants: {g2,g3} =", Red], {g2, g3}]
+
+(* Initial Conditions *)
+ClearAll[\[Theta]0, \[Phi]0, v\[Theta]0, v\[Phi]0, t0, tmax, sign]
+
+\[Theta]0 = \[Pi]/2 + \[Pi]/6 ; \[Phi]0 = \[Pi]/2 ;
+
+t0 = 0 ; tmax = 6 ; (* Time interval for plots / \
+numerical integration. *)
+
+sign = -1 ; (* sign can either be +1 or -1, \
+this is the direction fo the \theta velocity. *) 
+
+v\[Phi]0 = N[Lz/(m*l^2)*1/Sin[\[Theta]0]^2, 40]
+v\[Theta]0 = 
+ N[sign*Sqrt[
+   2*energy/(m*l^2) - Lz^2/(m^2*l^4*Sin[\[Theta]0]^2) - 
+    2*g/l*(1 - Cos[\[Theta]0])], 40]
+
+(* Setting the possible bound for orbits *)
+ClearAll[Veff, K\[Theta], turningPoints, \[Theta]min, \[Theta]max, \
+maxVal, minVal, domain, allowedregion, labels, limits, veffplot]
+
+Veff[\[Theta]_] := 
+  Lz^2/(2*m*l^2*Sin[\[Theta]]^2) + m*g*l*(1 - Cos[\[Theta]]);
+K\[Theta][\[Theta]_] := 
+  energy - Veff[\[Theta]]; (* Energy conservation relation *)
+turningPoints = \[Theta] /. 
+   Solve[{K\[Theta][\[Theta]] == 0, 0 < \[Theta] < \[Pi]}, \[Theta], 
+    Reals];
+
+\[Theta]min = Min[turningPoints] ;
+\[Theta]max = Max[turningPoints] ;
+
+maxVal = 
+  NMaxValue[{K\[Theta][\[Theta]], 0 < \[Theta] < \[Pi]}, \[Theta]];
+minVal = NMinValue[{Veff[\[Theta]], 0 < \[Theta] < \[Pi]}, \[Theta]];
+
+labels = 
+  Graphics[{Text[
+     Style["\[Theta]min", 12], {\[Theta]min, 0.05 maxVal}, {1.1, 0}], 
+    Text[Style["\[Theta]max", 12], {\[Theta]max, 0.05 maxVal}, {-1.1, 
+      0}]}];
+limits = 
+  Graphics[{Dashed, Black, 
+    Line[{{\[Theta]min, 0}, {\[Theta]min, maxVal + 1}}], 
+    Line[{{\[Theta]max, 0}, {\[Theta]max, maxVal + 1}}]}];
+
+
+domain = 
+ Show[Plot[{energy - Veff[\[Theta]]}, {\[Theta], 0, \[Pi]}, 
+   PlotStyle -> {Blue, Thick},
+   						Filling -> {1 -> {Axis, LightBlue}}, 
+   AxesLabel -> {"\[Theta]", "E-Veff(\[Theta])"},
+   						PlotRange -> {{\[Theta]min - 1, \[Pi] + .3}, {0, maxVal + 1}}],
+  			labels, limits]
+
+allowedregion = 
+  RegionPlot[
+   y <= energy && y >= Veff[\[Theta]], {\[Theta], 0, \[Pi]}, {y, 
+    minVal - 0.1, energy + 0.1}, PlotStyle -> LightRed, 
+   BoundaryStyle -> None];
+
+veffplot = 
+ Show[allowedregion, 
+  Plot[{Veff[\[Theta]], 
+    Callout[energy, "Energy", {2.5, energy}]}, {\[Theta], 0, \[Pi]}, 
+   PlotStyle -> {Blue, {Red, Dashed}}],
+  				Frame -> False, Axes -> True, AxesLabel -> {"\[Theta]", None}, 
+  PlotRange -> {{0, \[Pi] + 0.3}, {minVal - .5, energy + energy/6}}]
+
+Print[Style["Motion is restrict to (\[Theta]min, \[Theta]max) = ", 
+  Red], N[{\[Theta]min, \[Theta]max}]]
+
+(* Here we do a numerical integration of the equations of motion. *)
+ClearAll[lagrangean, eom\[Theta], eom\[Phi], sol, ICs, \[Theta], \
+\[Phi]]
+lagrangean = (m*l^2)/
+    2 (\[Theta]'[t]^2 + Sin[\[Theta][t]]^2*\[Phi]'[t]^2) - 
+   m*g*l*(1 - Cos[\[Theta][t]]);
+eom\[Theta] = 
+  D[D[lagrangean, \[Theta]'[t]], t] - D[lagrangean, \[Theta][t]] ;
+eom\[Phi] = D[D[lagrangean, \[Phi]'[t]], t] - D[lagrangean, \[Phi][t]] ;
+
+ICs = N[{\[Theta][0] == \[Theta]0, \[Theta]'[0] == 
+    v\[Theta]0, \[Phi][0] == \[Phi]0, \[Phi]'[0] == v\[Phi]0}, 40]
+
+sol = Flatten[
+  NDSolve[{eom\[Theta] == 0, eom\[Phi] == 0, 
+    ICs}, {\[Theta], \[Phi]}, {t, t0, tmax}]]
+
+ClearAll[num\[Theta]plot, num\[Phi]plot]
+num\[Theta]plot = 
+  Plot[Evaluate[\[Theta][t] /. sol], {t, t0, tmax}, 
+   PlotStyle -> {Red, Dashed}, PlotRange -> All] ;
+num\[Phi]plot = 
+  Plot[Evaluate[\[Phi][t] /. sol], {t, t0, tmax}, 
+   PlotStyle -> {Red, Dashed}, PlotRange -> All] ;
+
+(* Exact \[Theta]-motion *)
+ClearAll[v0, u0, u, theta, exact\[Theta]plot]
+
+v0 = -(1/4) (Cos[\[Theta]0] + (\[Xi] - 1)/3) ;
+u0 =  Sqrt[2 \[Omega]0^2]*t0  - sign*InverseWeierstrassP[v0, {g2, g3}];
+
+u[t_] := 
+ Re[-4*WeierstrassP[(Sqrt[2*\[Omega]0^2]*t - u0), {g2, 
+       g3}] - (\[Xi] - 1)/3] // Chop
+
+theta[t_] = ArcCos[u[t]] ;
+
+exact\[Theta]plot = 
+ Plot[{theta[t], 
+   Callout[\[Theta]min, "\[Theta]min", {\[Pi], \[Theta]min}], 
+   Callout[\[Theta]max, "\[Theta]max", {\[Pi], \[Theta]max}]}, {t, t0,
+    tmax}, PlotStyle -> {{}, {Black, Dashed}, {Black, Dashed}},
+  				AxesLabel -> {"t", "\[Theta](t)"}, 
+  PlotRange -> {\[Theta]min - .3, \[Theta]max + .3}]
+
+ClearAll[w1, w2, v1, v2, y1, y2, phi1, phi2, exactphi, exact\[Phi]plot]
+
+{w1, w2} = N[WeierstrassHalfPeriods[{g2, g3}], 40];
+
+v1 = -((\[Xi] + 2)/12) ;
+v2 = (4 - \[Xi])/12 ; 
+y1 = InverseWeierstrassP[v1, {g2, g3}];
+y2 = InverseWeierstrassP[v2, {g2, g3}];
+
+phi1[t_] := 
+ 1/WeierstrassPPrime[
+   y1, {g2, 
+    g3}]*(2*WeierstrassZeta[y1, {g2, g3}]*Sqrt[
+     2 \[Omega]0^2] (t - t0) + 
+    Log[(WeierstrassSigma[Sqrt[2 \[Omega]0^2] t - u0 - y1, {g2, g3}]*
+      WeierstrassSigma[Sqrt[2 \[Omega]0^2] t0 - u0 + y1, {g2, g3}])/(
+     WeierstrassSigma[Sqrt[2 \[Omega]0^2] t - u0 + y1, {g2, g3}]*
+      WeierstrassSigma[Sqrt[2 \[Omega]0^2] t0 - u0 - y1, {g2, g3}])])
+phi2[t_] := 
+ 1/WeierstrassPPrime[
+   y2, {g2, 
+    g3}]*(2*WeierstrassZeta[y2, {g2, g3}]*Sqrt[
+     2 \[Omega]0^2] (t - t0) + 
+    Log[(WeierstrassSigma[Sqrt[2 \[Omega]0^2] t - u0 - y2, {g2, g3}]*
+      WeierstrassSigma[Sqrt[2 \[Omega]0^2] t0 - u0 + y2, {g2, g3}])/(
+     WeierstrassSigma[Sqrt[2 \[Omega]0^2] t - u0 + y2, {g2, g3}]*
+      WeierstrassSigma[Sqrt[2 \[Omega]0^2] t0 - u0 - y2, {g2, g3}])])
+
+
+exactphi[t_] := \[Phi]0 + \[Alpha]/8 (phi1[t] - phi2[t]) // Re
+
+exact\[Phi]plot = 
+ Plot[exactphi[t], {t, t0, tmax}, AxesLabel -> {"t", "\[Phi](t)"}]
+
+Show[exact\[Phi]plot, num\[Phi]plot, PlotRange -> All]
+
+(* Well, \
+at this point, we need to discuss the problem with this implementation \
+. There is no problem at all with the final expression we had obtained\
+ for \[Phi](t). However, \
+it is likely that the plot of \[Phi](t) may not look continous, \
+as it should be. \
+The real problem is that "Log" is a multi-valued function, \
+and to properly plot the analytical expression we had for the elliptic\
+ integral of the third kind, it would be required that the function choose \
+the proper branch of the function. A test to verify that, \
+is to just see that different parts obtained from the above plot will be
+in good agreement by doing \[Phi](t) -> \[Phi](t) + k*\[Pi]. *)
+
+
+ClearAll[phi, exact\[Phi]int]
+
+phi[t_?NumericQ] := Module[{x0, x1},
+  						x0 = Sqrt[2 \[Omega]0^2] t0 - u0;
+  						x1 = Sqrt[2 \[Omega]0^2] t - u0;
+  Re[\[Phi]0 + \[Alpha]/8*
+     NIntegrate[
+      1/(WeierstrassP[x, {g2, g3}] - v1) - 
+       1/(WeierstrassP[x, {g2, g3}] - v2), {x, x0, x1},
+      					WorkingPrecision -> MachinePrecision, AccuracyGoal -> 10, 
+      PrecisionGoal -> 10]]]
+
+
+exact\[Phi]int = 
+ Plot[phi[t], {t, t0, tmax}, AxesLabel -> {"t", "\[Phi](t)"}]
+
+Show[exact\[Theta]plot, num\[Theta]plot]
+Show[exact\[Phi]int, num\[Phi]plot]
+
+sphere = Graphics3D[{Opacity[0.1], Red, Sphere[{0, 0, 0}, l]}];
+
+(* Animation, just for fun *)
+ClearAll[x, y, z, orbit]
+x[t_?NumericQ] := l*Sin[theta[t]]*Cos[phi[t]] // Chop
+y[t_?NumericQ] := l*Sin[theta[t]]*Sin[phi[t]] // Chop
+z[t_?NumericQ] := -l*Cos[theta[t]] // Chop
+orbit = ParametricPlot3D[Re[{x[t], y[t], z[t]}], {t, t0, tmax}, 
+   AxesLabel -> {"x", "y", "z"}];
+
+Show[orbit, sphere, PlotRange -> All, ViewPoint -> Front]
+
+
+(* Next step is to animate the motion. \
+The easiest way would be to use the numerical solution, \
+which was already tested and produces the same final output as the analytical 
+approach. However, we are not taking that; instead, let's build everything 
+from our analytical(ish) functions. \
+Note, however, that for larger tmax values, this can be quite a long process. 
+
+To make the animation work properly, one needs to first create the d\
+ata instead of making Mathematica calculate within the animation environment. *)
+
+ClearAll[trajdata, trajindex, trajanimated, rod, bob]
+
+trajdata = Table[{x[t], y[t], z[t]}, {t, t0, tmax, (tmax - t0)/300}];
+
+trajindex[t_] := 
+  Clip[Round[(t - t0)/(tmax - t0) (Length[trajdata] - 1)] + 1, {1, 
+    Length[trajdata]}];
+
+(* Creating the trajectory from the data. *)
+trajanimated[t_?NumericQ] := 
+  Graphics3D[{Blue, Thick, Line[trajdata[[;; trajindex[t]]]]}];
+
+(* Creating the rod *)
+rod[t_?NumericQ] := 
+  Graphics3D[{Black, Line[{{0, 0, 0}, trajdata[[trajindex[t]]]}]}];
+
+bob[t_?NumericQ] := 
+ Graphics3D[{Red, Sphere[trajdata[[trajindex[t]]], 0.05 l]}]
+
+
