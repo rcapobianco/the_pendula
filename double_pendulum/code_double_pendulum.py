@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Dec 17 22:09:47 2025
 
-@author: rogerio
+"""
+Double pendulum simulation with numerical integration.
+
+This script solves the nonlinear double pendulum using
+solve_ivp and produces time series plots, and energy 
+conservation diagnostics.
+
+Part of the project: The Pendula
+https://rcapobianco.github.io/notes/the_pendula/
+
+Author: Rogerio Capobianco
+Created: 2025-12-17
+Repository: the_pendula
 """
 
 ## Double Pendulum
@@ -33,9 +43,7 @@ omega2_0 = 0.0        # initial angular velocity for m2 (rad/s)
 
 tmax = 20 ##Integration time
 
-# %%
-
-# The system of equations for the double pendulum
+# System of equations for the double pendulum
 def double_pendulum(t, Y):
     theta1, theta2, omega1, omega2 = Y
 
